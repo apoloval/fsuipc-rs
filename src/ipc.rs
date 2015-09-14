@@ -59,7 +59,7 @@ pub trait MsgRead : Read {
             },
             FS6IPC_TERMINATIONMARK_ID => return Ok((MsgHeader::TerminationMark, 4)),
             unexpected => Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
+                io::ErrorKind::InvalidData,
                 format!("unexpected double word 0x{} while reading IPC message header",
                     unexpected))),
         }
@@ -232,7 +232,7 @@ mod test {
     #[test]
     fn should_fail_to_read_from_invalid_stream() {
         let mut buff: &[u8] = &[0x01, 0x02, 0x03, 0x04];
-        let expected_error = ErrorKind::InvalidInput;
+        let expected_error = ErrorKind::InvalidData;
         let actual_error = buff.read_header().err().unwrap().kind();
         assert_eq!(actual_error, expected_error);
     }
