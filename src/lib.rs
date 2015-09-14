@@ -8,15 +8,17 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 extern crate byteorder;
+extern crate user32;
 extern crate winapi;
 
 mod ipc;
 mod local;
+mod raw;
 
 use std::io;
 use std::mem::size_of;
 
-pub trait Handler {
+pub trait Handle {
     type Sess: Session;
     fn connect() -> io::Result<Self>;
     fn session(&self) -> Self::Sess;
