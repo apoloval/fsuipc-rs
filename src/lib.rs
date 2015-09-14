@@ -14,6 +14,7 @@ extern crate winapi;
 mod ipc;
 mod raw;
 
+#[cfg(all(windows, target_pointer_width = "32"))]
 pub mod local;
 
 use std::io;
