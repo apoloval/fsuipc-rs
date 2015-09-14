@@ -1,7 +1,12 @@
 [package]
 name = "fsuipc"
+description = "FSUIPC client for Rust programming language"
 version = "0.1.0"
 authors = ["Alvaro Polo <apoloval@gmail.com>"]
+license = "MPL-2.0"
+repository = "https://github.com/apoloval/fsuipc-rs"
+readme = "README.md"
+keywords = ["fsuipc", "fsx", "p3d", "simulation"]
 
 [dependencies]
 byteorder = "*"
