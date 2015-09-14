@@ -23,10 +23,8 @@ pub struct LocalHandle {
     handle: HWND,
 }
 
-impl Handle for LocalHandle {
-    type Sess = LocalSession;
-
-    fn connect() -> io::Result<Self> {
+impl LocalHandle {
+    pub fn new() -> io::Result<Self> {
         unsafe {
             let win_name = CString::new("UIPCMAIN").unwrap();
             let handle = FindWindowExA(
@@ -40,6 +38,10 @@ impl Handle for LocalHandle {
             }
         }
     }
+}
+
+impl Handle for LocalHandle {
+    type Sess = LocalSession;
 
     fn session(&self) -> LocalSession {
         LocalSession {

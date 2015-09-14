@@ -12,15 +12,15 @@ extern crate user32;
 extern crate winapi;
 
 mod ipc;
-mod local;
 mod raw;
+
+pub mod local;
 
 use std::io;
 use std::mem::size_of;
 
 pub trait Handle {
     type Sess: Session;
-    fn connect() -> io::Result<Self>;
     fn session(&self) -> Self::Sess;
     fn disconnect(self);
 }
