@@ -1,0 +1,10 @@
+[package]
+name = "fsuipc"
+version = "0.1.0"
+authors = ["Alvaro Polo <apoloval@gmail.com>"]
+
+[dependencies]
+byteorder = "*"
+kernel32-sys = "*"
+user32-sys = "*"
+winapi = "*"
