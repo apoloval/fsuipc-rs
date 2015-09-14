@@ -32,7 +32,7 @@ pub enum MsgHeader {
     TerminationMark
 }
 
-pub trait MsgHeaderRead : Read {
+pub trait MsgRead : Read {
     /// Read a IPC message header from the given `Read` object.
     /// It returns the read message header and the number of bytes processed.
     fn read_header(&mut self) -> io::Result<(MsgHeader, usize)> {
@@ -62,11 +62,25 @@ pub trait MsgHeaderRead : Read {
                     unexpected))),
         }
     }
+
+    fn read_body<W: Write>(&mut self, header: &MsgHeader, output: &mut W) -> io::Result<usize> {
+        match header {
+            &MsgHeader::ReadStateData { offset: _, len, target: _ } => {
+                for _ in 0..len { try!(output.write_u8(try!(self.read_u8()))); }
+                Ok(len)
+            },
+            &MsgHeader::WriteStateData { offset: _, len } => {
+                for _ in 0..len { try!(output.write_u8(try!(self.read_u8()))); }
+                Ok(len)
+            },
+            &MsgHeader::TerminationMark => Ok(0),
+        }
+    }
 }
 
-impl<R: Read + ?Sized> MsgHeaderRead for R {}
+impl<R: Read + ?Sized> MsgRead for R {}
 
-pub trait MsgHeaderWrite : Write {
+pub trait MsgWrite : Write {
     /// Write a IPC message header into the given `Write` object.
     fn write_header(&mut self, msg: &MsgHeader) -> io::Result<usize> {
         match msg {
@@ -89,9 +103,23 @@ pub trait MsgHeaderWrite : Write {
             },
         }
     }
+
+    fn write_body<R: Read>(&mut self, header: &MsgHeader, input: &mut R) -> io::Result<usize> {
+        match header {
+            &MsgHeader::ReadStateData { offset: _, len, target: _ } => {
+                for _ in 0..len { try!(self.write_u8(try!(input.read_u8()))); }
+                Ok(len)
+            },
+            &MsgHeader::WriteStateData { offset: _, len } => {
+                for _ in 0..len { try!(self.write_u8(try!(input.read_u8()))); }
+                Ok(len)
+            },
+            &MsgHeader::TerminationMark => Ok(0),
+        }
+    }
 }
 
-impl<W: Write + ?Sized> MsgHeaderWrite for W {}
+impl<W: Write + ?Sized> MsgWrite for W {}
 
 const FS6IPC_TERMINATIONMARK_ID: u32 = 0;
 const FS6IPC_READSTATEDATA_ID: u32 = 1;
@@ -107,7 +135,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn should_read_rsd() {
+    fn should_read_rsd_header() {
         let mut buff: &[u8] = &[
             0x01, 0x00, 0x00, 0x00,
             0x00, 0x10, 0x00, 0x00,
@@ -120,6 +148,22 @@ mod test {
             target: 0x2000 as *mut u8,
         };
         assert_eq!(buff.read_header().unwrap(), (expected, 16));
+    }
+
+    #[test]
+    fn should_read_rsd_body() {
+        let mut buff: &[u8] = &[ 0x01, 0x02, 0x03, 0x04 ];
+        let header = MsgHeader::ReadStateData {
+            offset: 0x1000,
+            len: 4,
+            target: 0x2000 as *mut u8,
+        };
+        let mut data = Vec::new();
+        assert_eq!(buff.read_body(&header, &mut data).unwrap(), 4);
+        assert_eq!(data[0], 1);
+        assert_eq!(data[1], 2);
+        assert_eq!(data[2], 3);
+        assert_eq!(data[3], 4);
     }
 
     #[test]
@@ -137,9 +181,32 @@ mod test {
     }
 
     #[test]
+    fn should_read_wsd_body() {
+        let mut buff: &[u8] = &[ 0x01, 0x02, 0x03, 0x04 ];
+        let header = MsgHeader::WriteStateData {
+            offset: 0x1000,
+            len: 4,
+        };
+        let mut data = Vec::new();
+        assert_eq!(buff.read_body(&header, &mut data).unwrap(), 4);
+        assert_eq!(data[0], 1);
+        assert_eq!(data[1], 2);
+        assert_eq!(data[2], 3);
+        assert_eq!(data[3], 4);
+    }
+
+    #[test]
     fn should_read_tm() {
         let mut buff: &[u8] = &[0x00, 0x00, 0x00, 0x00];
         assert_eq!(buff.read_header().unwrap(), ( MsgHeader::TerminationMark, 4));
+    }
+
+    #[test]
+    fn should_read_tm_body() {
+        let mut buff: &[u8] = &[ 0x01, 0x02, 0x03, 0x04 ];
+        let mut data = Vec::new();
+        assert_eq!(buff.read_body(&MsgHeader::TerminationMark, &mut data).unwrap(), 0);
+        assert_eq!(data.len(), 0);
     }
 
     #[test]
@@ -168,6 +235,23 @@ mod test {
     }
 
     #[test]
+    fn should_write_rsd_body() {
+        let mut buff = Vec::new();
+        let mut input = Cursor::new(vec![ 0x01u8, 0x02, 0x03, 0x04 ]);
+        let msg = MsgHeader::ReadStateData {
+            offset: 0x1000,
+            len: 4,
+            target: 0x2000 as *mut u8,
+        };
+
+        assert_eq!(buff.write_body(&msg, &mut input).unwrap(), 4);
+        assert_eq!(buff[0], 1);
+        assert_eq!(buff[1], 2);
+        assert_eq!(buff[2], 3);
+        assert_eq!(buff[3], 4);
+    }
+
+    #[test]
     fn should_write_wsd() {
         let mut buff = Cursor::new(Vec::new());
         let msg = MsgHeader::WriteStateData {
@@ -183,10 +267,34 @@ mod test {
     }
 
     #[test]
+    fn should_write_wsd_body() {
+        let mut buff = Vec::new();
+        let mut input = Cursor::new(vec![ 0x01u8, 0x02, 0x03, 0x04 ]);
+        let msg = MsgHeader::WriteStateData {
+            offset: 0x1000,
+            len: 4,
+        };
+
+        assert_eq!(buff.write_body(&msg, &mut input).unwrap(), 4);
+        assert_eq!(buff[0], 1);
+        assert_eq!(buff[1], 2);
+        assert_eq!(buff[2], 3);
+        assert_eq!(buff[3], 4);
+    }
+
+    #[test]
     fn should_write_tm() {
         let mut buff = Cursor::new(Vec::new());
         assert_eq!(buff.write_header(&MsgHeader::TerminationMark).unwrap(),4);
         buff.set_position(0);
         assert_eq!(buff.read_u32::<LittleEndian>().unwrap(), 0);
     }
+
+    #[test]
+    fn should_write_tm_body() {
+        let mut buff = Vec::new();
+        let mut input = Cursor::new(vec![ 0x01u8, 0x02, 0x03, 0x04 ]);
+        assert_eq!(buff.write_body(&MsgHeader::TerminationMark, &mut input).unwrap(), 0);
+        assert_eq!(buff.len(), 0);
+    }    
 }
