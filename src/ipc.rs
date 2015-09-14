@@ -37,27 +37,27 @@ pub enum MsgHeader {
 pub trait MsgRead : Read {
     /// Read a IPC message header from the given `Read` object.
     /// It returns the read message header and the number of bytes processed.
-    fn read_header(&mut self) -> io::Result<(MsgHeader, usize)> {
+    fn read_header(&mut self) -> io::Result<MsgHeader> {
         match try!(self.read_u32::<LittleEndian>()) {
             FS6IPC_READSTATEDATA_ID => {
                 let offset = try!(self.read_u32::<LittleEndian>()) as u16;
                 let len = try!(self.read_u32::<LittleEndian>()) as usize;
                 let target = try!(self.read_u32::<LittleEndian>()) as *mut u8;
-                Ok((MsgHeader::ReadStateData {
+                Ok(MsgHeader::ReadStateData {
                     offset: offset,
                     len: len,
                     target: target,
-                }, 16))
+                })
             },
             FS6IPC_WRITESTATEDATA_ID => {
                 let offset = try!(self.read_u32::<LittleEndian>()) as u16;
                 let len = try!(self.read_u32::<LittleEndian>()) as usize;
-                Ok((MsgHeader::WriteStateData {
+                Ok(MsgHeader::WriteStateData {
                     offset: offset,
                     len: len,
-                }, 12))
+                })
             },
-            FS6IPC_TERMINATIONMARK_ID => return Ok((MsgHeader::TerminationMark, 4)),
+            FS6IPC_TERMINATIONMARK_ID => return Ok(MsgHeader::TerminationMark),
             unexpected => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!("unexpected double word 0x{} while reading IPC message header",
@@ -167,7 +167,7 @@ mod test {
             len: 4,
             target: 0x2000 as *mut u8,
         };
-        assert_eq!(buff.read_header().unwrap(), (expected, 16));
+        assert_eq!(buff.read_header().unwrap(), expected);
     }
 
     #[test]
@@ -197,7 +197,7 @@ mod test {
             offset: 0x1000,
             len: 4,
         };
-        assert_eq!(buff.read_header().unwrap(), (expected, 12));
+        assert_eq!(buff.read_header().unwrap(), expected);
     }
 
     #[test]
@@ -218,7 +218,7 @@ mod test {
     #[test]
     fn should_read_tm_header() {
         let mut buff: &[u8] = &[0x00, 0x00, 0x00, 0x00];
-        assert_eq!(buff.read_header().unwrap(), ( MsgHeader::TerminationMark, 4));
+        assert_eq!(buff.read_header().unwrap(), MsgHeader::TerminationMark);
     }
 
     #[test]
