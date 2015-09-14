@@ -44,10 +44,7 @@ impl Handle for LocalHandle {
     type Sess = LocalSession;
 
     fn session(&self) -> LocalSession {
-        LocalSession {
-            handle: self.handle,
-            buffer: io::Cursor::new(Vec::with_capacity(4096))
-        }
+        LocalSession::new(self.handle)
     }
 
     fn disconnect(self) {}
@@ -56,6 +53,18 @@ impl Handle for LocalHandle {
 pub struct LocalSession {
     handle: HWND,
     buffer: io::Cursor<Vec<u8>>,
+}
+
+impl LocalSession {
+    fn new(handle: HWND) -> Self {
+        let mut session = LocalSession {
+            handle: handle,
+            buffer: io::Cursor::new(Vec::with_capacity(4096))
+        };
+        // First 4-bytes seems to be for a stack frame pointer that is not actually used
+        session.buffer.set_position(4);
+        session
+    }
 }
 
 impl Session for LocalSession {
@@ -74,11 +83,12 @@ impl Session for LocalSession {
             let buff = self.buffer.get_ref().as_ptr() as i32;
             let send_result = SendMessageA(self.handle, WM_IPCTHREADACCESS, nbytes as u32, buff);
             if send_result != FS6IPC_MESSAGE_SUCCESS {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "FSUIPC rejected the requests; possible data buffer corruption!"));
+                return Err(io::Error::new(io::ErrorKind::InvalidData, format!(
+                    "FSUIPC rejected the requests with error {}; possible buffer corruption in bytes: {:?}",
+                    send_result, self.buffer.get_ref())));
             }
-            self.buffer.set_position(0);
+            // First 4-bytes seems to be for a stack frame pointer that is not actually used
+            self.buffer.set_position(4);
             loop {
                 let header = try!(self.buffer.read_header());
                 match &header {
