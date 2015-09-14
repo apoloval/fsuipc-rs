@@ -19,12 +19,25 @@ pub mod local;
 use std::io;
 use std::mem::size_of;
 
+/// A handle to FSUIPC
+/// This type represents a handle to FSUIPC. It cannot be used directly to read of write from or
+/// to FSUIPC offsets. A `Session` object is created from the handle instead.
 pub trait Handle {
+    /// The type of the session objects created by this handle.
     type Sess: Session;
+
+    /// Create a new session from this handle
     fn session(&self) -> Self::Sess;
+
+    /// Disconnect the handle
     fn disconnect(self);
 }
 
+/// A session of read & write operations from/to FSUIPC
+/// Objects of this trait represents a session comprised of a sequence of read and write
+/// operations. The operations are requested by using `read()` and `write()` methods.
+/// They are not executed immediately but after calling `process()` method, which consumes
+/// the session.
 pub trait Session {
     fn read_bytes(&mut self, offset: u16, dest: *mut u8, len: usize) -> io::Result<usize>;
     fn write_bytes(&mut self, offset: u16, src: *const u8, len: usize) -> io::Result<usize>;

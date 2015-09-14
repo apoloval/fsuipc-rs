@@ -19,6 +19,8 @@ use super::{Handle, Session};
 use super::ipc::*;
 use super::raw::MutRawBytes;
 
+/// A handle to FSUIPc that uses local IPC communication to the FSUIPC module
+/// This kind of handle must be used from code running in the same process as FSUIPC does.
 pub struct LocalHandle {
     handle: HWND,
 }
