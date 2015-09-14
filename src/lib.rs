@@ -28,6 +28,7 @@ pub trait Handle {
 pub trait Session {
     fn read_bytes(&mut self, offset: u16, dest: *mut u8, len: usize) -> io::Result<usize>;
     fn write_bytes(&mut self, offset: u16, src: *const u8, len: usize) -> io::Result<usize>;
+    fn process(self) -> io::Result<usize>;
 
     fn read<'a, T>(&'a mut self, offset: u16, result: &'a mut T) -> io::Result<usize> {
         self.read_bytes(offset, result as *mut T as *mut u8, size_of::<T>())
