@@ -35,10 +35,37 @@ impl io::Read for RawBytes {
     }
 }
 
+pub struct MutRawBytes {
+    data: *mut u8,
+    len: usize,
+}
+
+impl MutRawBytes {
+    pub fn new(data: *mut u8, len: usize) -> Self {
+        MutRawBytes { data: data, len: len }
+    }
+}
+
+impl io::Write for MutRawBytes {
+    fn write(&mut self, buff: &[u8]) -> io::Result<usize> {
+        unsafe {
+            let nbytes = min(self.len, buff.len());
+            for i in 0..nbytes {
+                *self.data = buff[i];
+                self.data = self.data.offset(1);
+                self.len -= 1;
+            }
+            Ok(nbytes)
+        }
+    }
+
+    fn flush(&mut self) -> io::Result<()> { Ok(()) }
+}
+
 #[cfg(test)]
 mod test {
 
-    use std::io::Read;
+    use std::io::{Read, Write};
 
     use super::*;
 
@@ -76,5 +103,41 @@ mod test {
         assert_eq!(dest[3], 4);
         assert_eq!(dest[4], 0);
         assert_eq!(dest[5], 0);
+    }
+
+    #[test]
+    fn should_write_to_mutrawbytes() {
+        let src = [1u8, 2, 3, 4];
+        let mut dest = vec![0u8, 0, 0, 0];
+        let mut raw = MutRawBytes::new(dest.as_mut_ptr(), 4);
+        assert_eq!(raw.write(&src).unwrap(), 4);
+        assert_eq!(dest[0], 1);
+        assert_eq!(dest[1], 2);
+        assert_eq!(dest[2], 3);
+        assert_eq!(dest[3], 4);
+    }
+
+    #[test]
+    fn should_write_to_mutrawbytes_with_underflow() {
+        let src = [1u8, 2, 3, 4];
+        let mut dest = vec![0u8, 0, 0, 0, 0, 0];
+        let mut raw = MutRawBytes::new(dest.as_mut_ptr(), 4);
+        assert_eq!(raw.write(&src).unwrap(), 4);
+        assert_eq!(dest[0], 1);
+        assert_eq!(dest[1], 2);
+        assert_eq!(dest[2], 3);
+        assert_eq!(dest[3], 4);
+        assert_eq!(dest[4], 0);
+        assert_eq!(dest[5], 0);
+    }
+
+    #[test]
+    fn should_write_to_mutrawbytes_with_overflow() {
+        let src = [1u8, 2, 3, 4];
+        let mut dest = vec![0u8, 0];
+        let mut raw = MutRawBytes::new(dest.as_mut_ptr(), 2);
+        assert_eq!(raw.write(&src).unwrap(), 2);
+        assert_eq!(dest[0], 1);
+        assert_eq!(dest[1], 2);
     }
 }
