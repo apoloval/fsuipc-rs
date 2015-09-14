@@ -12,6 +12,8 @@ use std::io::{Read, Write};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
+use super::raw::RawBytes;
+
 /// The header of a message sent to FSUIPC module via IPC
 #[allow(raw_pointer_derive)]
 #[derive(Debug, PartialEq)]
@@ -117,6 +119,24 @@ pub trait MsgWrite : Write {
             &MsgHeader::TerminationMark => Ok(0),
         }
     }
+
+    fn write_rsd(&mut self, offset: u16, dest: *mut u8, len: usize) -> io::Result<usize> {
+        let header = MsgHeader::ReadStateData {
+            offset: offset, len: len, target: dest,
+        };
+        let hdr_bytes = try!(self.write_header(&header));
+        let body_bytes = try!(self.write_body(&header, &mut io::repeat(0)));
+        Ok(hdr_bytes + body_bytes)
+    }
+
+    fn write_wsd(&mut self, offset: u16, src: *const u8, len: usize) -> io::Result<usize> {
+        let header = MsgHeader::WriteStateData {
+            offset: offset, len: len,
+        };
+        let hdr_bytes = try!(self.write_header(&header));
+        let body_bytes = try!(self.write_body(&header, &mut RawBytes::new(src, len)));
+        Ok(hdr_bytes + body_bytes)
+    }
 }
 
 impl<W: Write + ?Sized> MsgWrite for W {}
@@ -167,7 +187,7 @@ mod test {
     }
 
     #[test]
-    fn should_read_wsd() {
+    fn should_read_wsd_header() {
         let mut buff: &[u8] = &[
             0x02, 0x00, 0x00, 0x00,
             0x00, 0x10, 0x00, 0x00,
@@ -196,7 +216,7 @@ mod test {
     }
 
     #[test]
-    fn should_read_tm() {
+    fn should_read_tm_header() {
         let mut buff: &[u8] = &[0x00, 0x00, 0x00, 0x00];
         assert_eq!(buff.read_header().unwrap(), ( MsgHeader::TerminationMark, 4));
     }
@@ -218,7 +238,7 @@ mod test {
     }
 
     #[test]
-    fn should_write_rsd() {
+    fn should_write_rsd_header() {
         let mut buff = Cursor::new(Vec::new());
         let msg = MsgHeader::ReadStateData {
             offset: 0x1000,
@@ -252,7 +272,20 @@ mod test {
     }
 
     #[test]
-    fn should_write_wsd() {
+    fn should_write_rsd() {
+        let mut buff = Cursor::new(Vec::new());
+        assert_eq!(buff.write_rsd(0x1000, 0x2000 as *mut u8, 4).unwrap(), 20);
+        buff.set_position(0);
+        assert_eq!(buff.get_ref().len(), 20);
+        assert_eq!(buff.read_u32::<LittleEndian>().unwrap(), 1);
+        assert_eq!(buff.read_u32::<LittleEndian>().unwrap(), 0x1000);
+        assert_eq!(buff.read_u32::<LittleEndian>().unwrap(), 4);
+        assert_eq!(buff.read_u32::<LittleEndian>().unwrap(), 0x2000);
+        assert_eq!(buff.read_u32::<LittleEndian>().unwrap(), 0);
+    }
+
+    #[test]
+    fn should_write_wsd_header() {
         let mut buff = Cursor::new(Vec::new());
         let msg = MsgHeader::WriteStateData {
             offset: 0x1000,
@@ -283,7 +316,20 @@ mod test {
     }
 
     #[test]
-    fn should_write_tm() {
+    fn should_write_wsd() {
+        let mut buff = Cursor::new(Vec::new());
+        let data = &0x01020304u32 as *const u32 as *const u8;
+        assert_eq!(buff.write_wsd(0x1000, data, 4).unwrap(), 16);
+        buff.set_position(0);
+        assert_eq!(buff.get_ref().len(), 16);
+        assert_eq!(buff.read_u32::<LittleEndian>().unwrap(), 2);
+        assert_eq!(buff.read_u32::<LittleEndian>().unwrap(), 0x1000);
+        assert_eq!(buff.read_u32::<LittleEndian>().unwrap(), 4);
+        assert_eq!(buff.read_u32::<LittleEndian>().unwrap(), 0x01020304);
+    }
+
+    #[test]
+    fn should_write_tm_header() {
         let mut buff = Cursor::new(Vec::new());
         assert_eq!(buff.write_header(&MsgHeader::TerminationMark).unwrap(),4);
         buff.set_position(0);
@@ -296,5 +342,5 @@ mod test {
         let mut input = Cursor::new(vec![ 0x01u8, 0x02, 0x03, 0x04 ]);
         assert_eq!(buff.write_body(&MsgHeader::TerminationMark, &mut input).unwrap(), 0);
         assert_eq!(buff.len(), 0);
-    }    
+    }
 }
