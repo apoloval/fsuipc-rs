@@ -27,12 +27,12 @@ use std::mem::size_of;
 /// A handle to FSUIPC
 /// This type represents a handle to FSUIPC. It cannot be used directly to read of write from or
 /// to FSUIPC offsets. A `Session` object is created from the handle instead.
-pub trait Handle {
+pub trait Handle<'a> {
     /// The type of the session objects created by this handle.
     type Sess: Session;
 
     /// Create a new session from this handle
-    fn session(&self) -> Self::Sess;
+    fn session(&'a mut self) -> Self::Sess;
 }
 
 /// A session of read & write operations from/to FSUIPC

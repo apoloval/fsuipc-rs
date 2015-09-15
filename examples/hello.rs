@@ -25,7 +25,7 @@ fn main() {
 }
 
 fn run() -> io::Result<()> {
-    let handle = try!(UserHandle::new());
+    let mut handle = try!(UserHandle::new());
     let mut session = handle.session();
     let mut fsuipc_ver = 0u32;
     let mut fs_ver = 0u16;

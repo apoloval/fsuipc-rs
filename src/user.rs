@@ -92,16 +92,14 @@ impl UserHandle {
     }
 }
 
-impl Handle for UserHandle {
-    type Sess = UserSession;
+impl<'a> Handle<'a> for UserHandle {
+    type Sess = UserSession<'a>;
 
-    fn session(&self) -> UserSession {
+    fn session(&'a mut self) -> UserSession<'a> {
+        let data = self.data;
         UserSession {
-            handle: self.handle,
-            file_mapping_atom: self.file_mapping_atom,
-            msg_id: self.msg_id,
-            data: self.data,
-            buffer: MutRawBytes::new(self.data, FILE_MAPPING_LEN)
+            handle: self,
+            buffer: MutRawBytes::new(data, FILE_MAPPING_LEN)
         }
     }
 }
@@ -116,15 +114,12 @@ impl Drop for UserHandle {
     }
 }
 
-pub struct UserSession {
-    handle: HWND,
-    file_mapping_atom: ATOM,
-    msg_id: u32,
-    data: *mut u8,
+pub struct UserSession<'a> {
+    handle: &'a mut UserHandle,
     buffer: MutRawBytes,
 }
 
-impl Session for UserSession {
+impl<'a> Session for UserSession<'a> {
     fn read_bytes(&mut self, offset: u16, dest: *mut u8, len: usize) -> io::Result<usize> {
         self.buffer.write_rsd(offset, dest, len)
     }
@@ -137,16 +132,16 @@ impl Session for UserSession {
         unsafe {
             try!(self.buffer.write_header(&MsgHeader::TerminationMark));
             let send_result = SendMessageA(
-                self.handle,
-                self.msg_id,
-                self.file_mapping_atom as u32,
+                self.handle.handle,
+                self.handle.msg_id,
+                self.handle.file_mapping_atom as u32,
                 0);
             if send_result != FS6IPC_MESSAGE_SUCCESS {
                 return Err(io::Error::new(io::ErrorKind::InvalidData, format!(
                     "FSUIPC rejected the requests with error {}; possible buffer corruption",
                     send_result)));
             }
-            let mut buffer = RawBytes::new(self.data, FILE_MAPPING_LEN);
+            let mut buffer = RawBytes::new(self.handle.data, FILE_MAPPING_LEN);
             loop {
                 let header = try!(buffer.read_header());
                 match &header {
