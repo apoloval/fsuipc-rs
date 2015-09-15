@@ -1,6 +1,6 @@
 [root]
 name = "fsuipc"
-version = "0.1.0"
+version = "0.2.0-SNAPSHOT"
 dependencies = [
  "byteorder 0.3.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "kernel32-sys 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
