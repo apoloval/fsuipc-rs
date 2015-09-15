@@ -48,8 +48,6 @@ impl Handle for LocalHandle {
     fn session(&self) -> LocalSession {
         LocalSession::new(self.handle)
     }
-
-    fn disconnect(self) {}
 }
 
 pub struct LocalSession {

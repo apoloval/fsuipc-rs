@@ -33,9 +33,6 @@ pub trait Handle {
 
     /// Create a new session from this handle
     fn session(&self) -> Self::Sess;
-
-    /// Disconnect the handle
-    fn disconnect(self);
 }
 
 /// A session of read & write operations from/to FSUIPC
