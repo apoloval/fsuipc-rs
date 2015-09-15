@@ -13,12 +13,15 @@ use std::cmp::min;
 pub struct RawBytes {
     data: *const u8,
     len: usize,
+    read: usize,
 }
 
 impl RawBytes {
     pub fn new(data: *const u8, len: usize) -> Self {
-        RawBytes { data: data, len: len }
+        RawBytes { data: data, len: len, read: 0 }
     }
+
+    pub fn consumed(&self) -> usize { self.read }
 }
 
 impl io::Read for RawBytes {
@@ -29,6 +32,7 @@ impl io::Read for RawBytes {
                 buff[i] = *self.data;
                 self.data = self.data.offset(1);
                 self.len -= 1;
+                self.read += 1;
             }
             Ok(nbytes)
         }
@@ -103,6 +107,17 @@ mod test {
         assert_eq!(dest[3], 4);
         assert_eq!(dest[4], 0);
         assert_eq!(dest[5], 0);
+    }
+
+    #[test]
+    fn should_count_consumed_for_mutrawbytes() {
+        let src = [1u8, 2, 3, 4];
+        let mut dest = [0, 0];
+        let mut raw = RawBytes::new(&src as *const u8, 4);
+        raw.read(&mut dest).unwrap();
+        assert_eq!(raw.consumed(), 2);
+        raw.read(&mut dest).unwrap();
+        assert_eq!(raw.consumed(), 4);
     }
 
     #[test]
