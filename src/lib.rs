@@ -8,6 +8,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 extern crate byteorder;
+extern crate kernel32;
 extern crate user32;
 extern crate winapi;
 
@@ -16,6 +17,9 @@ mod raw;
 
 #[cfg(all(windows, target_pointer_width = "32"))]
 pub mod local;
+
+#[cfg(windows)]
+pub mod user;
 
 use std::io;
 use std::mem::size_of;
