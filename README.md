@@ -64,9 +64,11 @@ The rest of the code would work for user mode as well.
 
 You may also have a look to the [Hello World example][3].
 
-## Current limitations
+## Known limitations
 
-It has not been tested with WideFS. It is supposed to fail since it uses
+* It only works in Windows platform with x86 32 bits architecture. This is
+due to limitations of IPC protocol implemented in FSUIPC.
+* It has not been tested with WideFS. It is supposed to fail since it uses
 a different window identifier than FSUIPC.
 
 ## License

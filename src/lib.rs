@@ -18,7 +18,7 @@ mod raw;
 #[cfg(all(windows, target_pointer_width = "32"))]
 pub mod local;
 
-#[cfg(windows)]
+#[cfg(all(windows, target_pointer_width = "32"))]
 pub mod user;
 
 use std::io;
