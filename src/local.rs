@@ -11,9 +11,10 @@ use std::ffi::CString;
 use std::io;
 use std::ptr;
 
-use user32::{FindWindowExA, SendMessageA};
+use user32::{FindWindowExA, SendMessageTimeoutA};
 use winapi::WM_USER;
 use winapi::windef::HWND;
+use winapi::winuser::SMTO_BLOCK;
 
 use super::{Handle, Session};
 use super::ipc::*;
@@ -81,8 +82,21 @@ impl Session for LocalSession {
             try!(self.buffer.write_header(&MsgHeader::TerminationMark));
             let nbytes = self.buffer.position() as usize;
             let buff = self.buffer.get_ref().as_ptr() as i32;
-            let send_result = SendMessageA(self.handle, WM_IPCTHREADACCESS, nbytes as u32, buff);
-            if send_result != FS6IPC_MESSAGE_SUCCESS {
+            let mut process_result: u32 = 0;
+            let send_result = SendMessageTimeoutA(
+                self.handle,
+                WM_IPCTHREADACCESS,
+                nbytes as u32,
+                buff,
+                SMTO_BLOCK,
+                WM_IPC_TIMEOUT,
+                &mut process_result as *mut u32);
+            if send_result == 0 {
+                return Err(io::Error::new(
+                    io::ErrorKind::TimedOut,
+                    "timed out while waiting for a response from FSUIPC"));
+            }
+            if process_result != FS6IPC_MESSAGE_SUCCESS {
                 return Err(io::Error::new(io::ErrorKind::InvalidData, format!(
                     "FSUIPC rejected the requests with error {}; possible buffer corruption in bytes: {:?}",
                     send_result, self.buffer.get_ref())));
@@ -107,5 +121,6 @@ impl Session for LocalSession {
     }
 }
 
-const FS6IPC_MESSAGE_SUCCESS: i32 = 1;
+const FS6IPC_MESSAGE_SUCCESS: u32 = 1;
 const WM_IPCTHREADACCESS: u32 = WM_USER + 130;
+const WM_IPC_TIMEOUT: u32 = 10000;
