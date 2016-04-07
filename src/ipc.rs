@@ -15,7 +15,6 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use super::raw::RawBytes;
 
 /// The header of a message sent to FSUIPC module via IPC
-#[allow(raw_pointer_derive)]
 #[derive(Debug, PartialEq)]
 pub enum MsgHeader {
     /// Read state data message header
