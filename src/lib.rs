@@ -15,10 +15,10 @@ extern crate winapi;
 mod ipc;
 mod raw;
 
-#[cfg(all(windows, target_pointer_width = "32"))]
+#[cfg(all(windows))]
 pub mod local;
 
-#[cfg(all(windows, target_pointer_width = "32"))]
+#[cfg(all(windows))]
 pub mod user;
 
 use std::io;

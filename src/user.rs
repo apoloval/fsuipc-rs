@@ -134,7 +134,7 @@ impl<'a> Session for UserSession<'a> {
             let send_result = SendMessageA(
                 self.handle.handle,
                 self.handle.msg_id,
-                self.handle.file_mapping_atom as u32,
+                self.handle.file_mapping_atom as WinUInt,
                 0);
             if send_result != FS6IPC_MESSAGE_SUCCESS {
                 return Err(io::Error::new(io::ErrorKind::InvalidData, format!(
@@ -168,7 +168,7 @@ fn next_file_mapping_index() -> u32 {
     }
 }
 
-const FS6IPC_MESSAGE_SUCCESS: i32 = 1;
+const FS6IPC_MESSAGE_SUCCESS: WinInt = 1;
 const FILE_MAPPING_LEN: usize = 64*1024;
 
 static mut FILE_MAPPING_INDEX: u32 = 0;

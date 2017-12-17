@@ -14,6 +14,16 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 use super::raw::RawBytes;
 
+#[cfg(all(windows, target_pointer_width = "32"))]
+pub type WinUInt = u32;
+#[cfg(all(windows, target_pointer_width = "32"))]
+pub type WinInt = i32;
+
+#[cfg(all(windows, target_pointer_width = "64"))]
+pub type WinUInt = u64;
+#[cfg(all(windows, target_pointer_width = "64"))]
+pub type WinInt = i64;
+
 /// The header of a message sent to FSUIPC module via IPC
 #[derive(Debug, PartialEq)]
 pub enum MsgHeader {

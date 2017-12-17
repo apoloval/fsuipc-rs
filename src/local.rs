@@ -84,16 +84,16 @@ impl Session for LocalSession {
         unsafe {
             try!(self.buffer.write_header(&MsgHeader::TerminationMark));
             let nbytes = self.buffer.position() as usize;
-            let buff = self.buffer.get_ref().as_ptr() as i32;
-            let mut process_result: u32 = 0;
+            let buff = self.buffer.get_ref().as_ptr() as WinInt;
+            let mut process_result: WinUInt = 0;
             let send_result = SendMessageTimeoutA(
                 self.handle,
                 WM_IPCTHREADACCESS,
-                nbytes as u32,
+                nbytes as WinUInt,
                 buff,
                 SMTO_BLOCK,
                 WM_IPC_TIMEOUT,
-                &mut process_result as *mut u32);
+                &mut process_result as *mut WinUInt);
             if send_result == 0 {
                 return Err(io::Error::new(
                     io::ErrorKind::TimedOut,
@@ -124,7 +124,7 @@ impl Session for LocalSession {
     }
 }
 
-const FS6IPC_MESSAGE_SUCCESS: u32 = 1;
+const FS6IPC_MESSAGE_SUCCESS: WinUInt = 1;
 const WM_IPCTHREADACCESS: u32 = WM_USER + 130;
 const WM_IPC_TIMEOUT: u32 = 10000;
 
