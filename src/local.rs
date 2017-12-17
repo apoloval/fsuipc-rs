@@ -22,9 +22,12 @@ use super::raw::MutRawBytes;
 
 /// A handle to FSUIPc that uses local IPC communication to the FSUIPC module
 /// This kind of handle must be used from code running in the same process as FSUIPC does.
+#[derive(Clone)]
 pub struct LocalHandle {
     handle: HWND,
 }
+
+unsafe impl Send for LocalHandle {}
 
 impl LocalHandle {
     pub fn new() -> io::Result<Self> {
@@ -124,3 +127,21 @@ impl Session for LocalSession {
 const FS6IPC_MESSAGE_SUCCESS: u32 = 1;
 const WM_IPCTHREADACCESS: u32 = WM_USER + 130;
 const WM_IPC_TIMEOUT: u32 = 10000;
+
+#[cfg(test)]
+mod test {
+    use std::thread;
+    use winapi::windef::HWND;
+    use super::*;
+
+    #[test]
+    fn test_local_handler_can_be_shared() {
+        let handler = LocalHandle{ handle: 0 as HWND };
+        let handler_copy = handler.clone();
+        let child = thread::spawn(move|| {
+            assert_eq!(0 as HWND, handler_copy.handle);
+        });
+        child.join().unwrap();
+        assert_eq!(0 as HWND, handler.handle);
+    }
+}
