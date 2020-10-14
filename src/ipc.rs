@@ -47,11 +47,11 @@ pub trait MsgRead : Read {
     /// Read a IPC message header from the given `Read` object.
     /// It returns the read message header and the number of bytes processed.
     fn read_header(&mut self) -> io::Result<MsgHeader> {
-        match try!(self.read_u32::<LittleEndian>()) {
+        match self.read_u32::<LittleEndian>()? {
             FS6IPC_READSTATEDATA_ID => {
-                let offset = try!(self.read_u32::<LittleEndian>()) as u16;
-                let len = try!(self.read_u32::<LittleEndian>()) as usize;
-                let target = try!(self.read_u32::<LittleEndian>()) as *mut u8;
+                let offset = self.read_u32::<LittleEndian>()? as u16;
+                let len = self.read_u32::<LittleEndian>()? as usize;
+                let target = self.read_u32::<LittleEndian>()? as *mut u8;
                 Ok(MsgHeader::ReadStateData {
                     offset: offset,
                     len: len,
@@ -59,8 +59,8 @@ pub trait MsgRead : Read {
                 })
             },
             FS6IPC_WRITESTATEDATA_ID => {
-                let offset = try!(self.read_u32::<LittleEndian>()) as u16;
-                let len = try!(self.read_u32::<LittleEndian>()) as usize;
+                let offset = self.read_u32::<LittleEndian>()? as u16;
+                let len = self.read_u32::<LittleEndian>()? as usize;
                 Ok(MsgHeader::WriteStateData {
                     offset: offset,
                     len: len,
@@ -77,11 +77,11 @@ pub trait MsgRead : Read {
     fn read_body<W: Write>(&mut self, header: &MsgHeader, output: &mut W) -> io::Result<usize> {
         match header {
             &MsgHeader::ReadStateData { offset: _, len, target: _ } => {
-                for _ in 0..len { try!(output.write_u8(try!(self.read_u8()))); }
+                for _ in 0..len { output.write_u8(self.read_u8()?)?; }
                 Ok(len)
             },
             &MsgHeader::WriteStateData { offset: _, len } => {
-                for _ in 0..len { try!(output.write_u8(try!(self.read_u8()))); }
+                for _ in 0..len { output.write_u8(self.read_u8()?)?; }
                 Ok(len)
             },
             &MsgHeader::TerminationMark => Ok(0),
@@ -96,20 +96,20 @@ pub trait MsgWrite : Write {
     fn write_header(&mut self, msg: &MsgHeader) -> io::Result<usize> {
         match msg {
             &MsgHeader::ReadStateData { offset, len, target } => {
-                try!(self.write_u32::<LittleEndian>(FS6IPC_READSTATEDATA_ID));
-                try!(self.write_u32::<LittleEndian>(offset as u32));
-                try!(self.write_u32::<LittleEndian>(len as u32));
-                try!(self.write_u32::<LittleEndian>(target as u32));
+                self.write_u32::<LittleEndian>(FS6IPC_READSTATEDATA_ID)?;
+                self.write_u32::<LittleEndian>(offset as u32)?;
+                self.write_u32::<LittleEndian>(len as u32)?;
+                self.write_u32::<LittleEndian>(target as u32)?;
                 Ok(16)
             },
             &MsgHeader::WriteStateData { offset, len } => {
-                try!(self.write_u32::<LittleEndian>(FS6IPC_WRITESTATEDATA_ID));
-                try!(self.write_u32::<LittleEndian>(offset as u32));
-                try!(self.write_u32::<LittleEndian>(len as u32));
+                self.write_u32::<LittleEndian>(FS6IPC_WRITESTATEDATA_ID)?;
+                self.write_u32::<LittleEndian>(offset as u32)?;
+                self.write_u32::<LittleEndian>(len as u32)?;
                 Ok(12)
             },
             &MsgHeader::TerminationMark => {
-                try!(self.write_u32::<LittleEndian>(FS6IPC_TERMINATIONMARK_ID));
+                self.write_u32::<LittleEndian>(FS6IPC_TERMINATIONMARK_ID)?;
                 Ok(4)
             },
         }
@@ -118,11 +118,11 @@ pub trait MsgWrite : Write {
     fn write_body<R: Read>(&mut self, header: &MsgHeader, input: &mut R) -> io::Result<usize> {
         match header {
             &MsgHeader::ReadStateData { offset: _, len, target: _ } => {
-                for _ in 0..len { try!(self.write_u8(try!(input.read_u8()))); }
+                for _ in 0..len { self.write_u8(input.read_u8()?)?; }
                 Ok(len)
             },
             &MsgHeader::WriteStateData { offset: _, len } => {
-                for _ in 0..len { try!(self.write_u8(try!(input.read_u8()))); }
+                for _ in 0..len { self.write_u8(input.read_u8()?)?; }
                 Ok(len)
             },
             &MsgHeader::TerminationMark => Ok(0),
@@ -133,8 +133,8 @@ pub trait MsgWrite : Write {
         let header = MsgHeader::ReadStateData {
             offset: offset, len: len, target: dest,
         };
-        let hdr_bytes = try!(self.write_header(&header));
-        let body_bytes = try!(self.write_body(&header, &mut io::repeat(0)));
+        let hdr_bytes = self.write_header(&header)?;
+        let body_bytes = self.write_body(&header, &mut io::repeat(0))?;
         Ok(hdr_bytes + body_bytes)
     }
 
@@ -142,8 +142,8 @@ pub trait MsgWrite : Write {
         let header = MsgHeader::WriteStateData {
             offset: offset, len: len,
         };
-        let hdr_bytes = try!(self.write_header(&header));
-        let body_bytes = try!(self.write_body(&header, &mut RawBytes::new(src, len)));
+        let hdr_bytes = self.write_header(&header)?;
+        let body_bytes = self.write_body(&header, &mut RawBytes::new(src, len))?;
         Ok(hdr_bytes + body_bytes)
     }
 }

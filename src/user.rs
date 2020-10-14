@@ -131,7 +131,7 @@ impl<'a> Session for UserSession<'a> {
 
     fn process(mut self) -> io::Result<usize> {
         unsafe {
-            try!(self.buffer.write_header(&MsgHeader::TerminationMark));
+            self.buffer.write_header(&MsgHeader::TerminationMark)?;
             let send_result = SendMessageA(
                 self.handle.handle,
                 self.handle.msg_id,
@@ -144,15 +144,15 @@ impl<'a> Session for UserSession<'a> {
             }
             let mut buffer = RawBytes::new(self.handle.data, FILE_MAPPING_LEN);
             loop {
-                let header = try!(buffer.read_header());
+                let header = buffer.read_header()?;
                 match &header {
                     &MsgHeader::ReadStateData { offset: _, len, target } => {
                         let mut output = MutRawBytes::new(target, len);
-                        try!(buffer.read_body(&header, &mut output));
+                        buffer.read_body(&header, &mut output)?;
                     },
                     &MsgHeader::WriteStateData { offset: _, len: _ } => {
                         let mut output = io::sink();
-                        try!(buffer.read_body(&header, &mut output));
+                        buffer.read_body(&header, &mut output)?;
                     },
                     &MsgHeader::TerminationMark => return Ok(buffer.consumed()),
                 }

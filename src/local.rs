@@ -82,7 +82,7 @@ impl Session for LocalSession {
 
     fn process(mut self) -> io::Result<usize> {
         unsafe {
-            try!(self.buffer.write_header(&MsgHeader::TerminationMark));
+            self.buffer.write_header(&MsgHeader::TerminationMark)?;
             let nbytes = self.buffer.position() as usize;
             let buff = self.buffer.get_ref().as_ptr() as WinInt;
             let mut process_result: WinUInt = 0;
@@ -107,15 +107,15 @@ impl Session for LocalSession {
             // First 4-bytes seems to be for a stack frame pointer that is not actually used
             self.buffer.set_position(4);
             loop {
-                let header = try!(self.buffer.read_header());
+                let header = self.buffer.read_header()?;
                 match &header {
                     &MsgHeader::ReadStateData { offset: _, len, target } => {
                         let mut output = MutRawBytes::new(target, len);
-                        try!(self.buffer.read_body(&header, &mut output));
+                        self.buffer.read_body(&header, &mut output)?;
                     },
                     &MsgHeader::WriteStateData { offset: _, len: _ } => {
                         let mut output = io::sink();
-                        try!(self.buffer.read_body(&header, &mut output));
+                        self.buffer.read_body(&header, &mut output)?;
                     },
                     &MsgHeader::TerminationMark => return Ok(nbytes),
                 }
