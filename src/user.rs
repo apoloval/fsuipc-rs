@@ -13,6 +13,7 @@ use std::ptr;
 
 use kernel32::*;
 use user32::{FindWindowExA, RegisterWindowMessageA, SendMessageA};
+use winapi::INVALID_HANDLE_VALUE;
 use winapi::memoryapi::FILE_MAP_WRITE;
 use winapi::minwindef::ATOM;
 use winapi::windef::HWND;
@@ -65,7 +66,7 @@ impl UserHandle {
             }
 
             let file_mapping = CreateFileMappingA(
-                0xffffffff as HANDLE,
+                INVALID_HANDLE_VALUE,
                 ptr::null_mut(),
                 PAGE_READWRITE,
                 0, FILE_MAPPING_LEN as u32,
