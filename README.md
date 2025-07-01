@@ -66,8 +66,8 @@ You may also have a look to the [Hello World example][3].
 
 ## Known limitations
 
-* It is successfully tested in platform with i686, 32 bits architecture. Support
-for x86_64 is added, but was not fully tested yet.
+* It is successfully tested in platform with i686, 32 bits architecture.
+* It is successfully tested in platform with 64 bits architecture in user mode.
 * It has not been tested with WideFS. It is supposed to fail since it uses
 a different window identifier than FSUIPC.
 
