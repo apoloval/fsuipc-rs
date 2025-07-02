@@ -57,13 +57,17 @@ impl<'a> Handle<'a> for LocalHandle {
 pub struct LocalSession {
     handle: HWND,
     buffer: io::Cursor<Vec<u8>>,
+    #[cfg(target_pointer_width = "64")]
+    destinations: Vec<*mut u8>,
 }
 
 impl LocalSession {
     fn new(handle: HWND) -> Self {
         let mut session = LocalSession {
             handle: handle,
-            buffer: io::Cursor::new(Vec::with_capacity(4096))
+            buffer: io::Cursor::new(Vec::with_capacity(4096)),
+            #[cfg(target_pointer_width = "64")]
+            destinations: Vec::new(),
         };
         // First 4-bytes seems to be for a stack frame pointer that is not actually used
         session.buffer.set_position(4);
@@ -73,7 +77,16 @@ impl LocalSession {
 
 impl Session for LocalSession {
     fn read_bytes(&mut self, offset: u16, dest: *mut u8, len: usize) -> io::Result<usize> {
-        self.buffer.write_rsd(offset, dest, len)
+        #[cfg(target_pointer_width = "64")]
+        {
+            let idx = self.destinations.len();
+            self.destinations.push(dest);
+            self.buffer.write_rsd(offset, idx as *mut u8, len)
+        }
+        #[cfg(not(target_pointer_width = "64"))]
+        {
+            self.buffer.write_rsd(offset, dest, len)
+        }
     }
 
     fn write_bytes(&mut self, offset: u16, src: *const u8, len: usize) -> io::Result<usize> {
@@ -110,6 +123,16 @@ impl Session for LocalSession {
                 let header = self.buffer.read_header()?;
                 match &header {
                     &MsgHeader::ReadStateData { offset: _, len, target } => {
+                        #[cfg(target_pointer_width = "64")]
+                        let actual = {
+                            let idx = target as usize;
+                            *self.destinations.get(idx).ok_or_else(|| {
+                                io::Error::new(io::ErrorKind::InvalidData, "invalid destination index")
+                            })?
+                        };
+                        #[cfg(target_pointer_width = "64")]
+                        let mut output = MutRawBytes::new(actual, len);
+                        #[cfg(not(target_pointer_width = "64"))]
                         let mut output = MutRawBytes::new(target, len);
                         self.buffer.read_body(&header, &mut output)?;
                     },
